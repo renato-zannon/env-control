@@ -29,16 +29,24 @@ fn main() {
 
     let mut printed_paths: HashSet<String> = HashSet::new();
 
-    if let Some(first_path) = combined_paths.next() {
-        print!("{}", first_path);
-        printed_paths.insert(first_path);
+    match combined_paths.next() {
+        Some(first_path) => {
+            if !first_path.trim().is_empty() {
+                print!("{}", first_path);
+                printed_paths.insert(first_path);
+            }
+        },
+
+        None => return,
     }
 
     for path in combined_paths {
-        if !printed_paths.contains(&path) && !to_remove.contains(&path) {
-            print!(":{}", path);
-            printed_paths.insert(path);
+        if path.trim().is_empty() || printed_paths.contains(&path) || to_remove.contains(&path) {
+            continue
         }
+
+        print!(":{}", path);
+        printed_paths.insert(path);
     }
 
     print!("\n");
