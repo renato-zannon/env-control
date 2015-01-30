@@ -1,0 +1,9 @@
+[package]
+name = "env-control"
+version = "0.0.1"
+authors = ["Renato Zannon <renato@rrsz.com.br>"]
+
+[dependencies]
+docopt = "*"
+rustc-serialize = "*"
+docopt_macros = "*"
