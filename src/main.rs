@@ -5,10 +5,14 @@
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate docopt;
 
+mod path_set;
+
 use std::collections::HashSet;
 use std::{env, process, old_io};
 use std::process::Stdio;
 use std::old_io::stdio;
+
+use path_set::{PathSetIter, iter};
 
 docopt!(Config derive Debug Clone, "
 Usage: env-control <var-name> [-a PATH | -p PATH | -r PATH]...
@@ -19,12 +23,12 @@ Options:
     -p, --prepend PATH  Prepend this path to the variable
     -r, --remove PATH   Remove this path from the variable
     <var-name>          The PATH-like environment variable to manipulate
-", flag_remove: HashSet<String>);
+");
 
 struct Changes {
     to_remove: HashSet<String>,
-    to_append: Vec<String>,
-    to_prepend: Vec<String>,
+    to_append: PathSetIter<String>,
+    to_prepend: PathSetIter<String>,
 }
 
 fn main() {
@@ -36,9 +40,9 @@ fn main() {
     };
 
     let changes = Changes {
-        to_remove: cfg.flag_remove,
-        to_append: cfg.flag_append,
-        to_prepend: cfg.flag_prepend,
+        to_remove: iter(cfg.flag_remove).collect(),
+        to_append: iter(cfg.flag_append),
+        to_prepend: iter(cfg.flag_prepend),
     };
 
     if cfg.cmd_exec {
@@ -64,9 +68,9 @@ fn main() {
 fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), old_io::IoError> where W: Writer {
     let Changes { to_append, to_prepend, to_remove } = changes;
 
-    let mut combined_paths = to_prepend.into_iter()
-        .chain(current_path.split(':').map(|slice| slice.to_string()))
-        .chain(to_append.into_iter())
+    let mut combined_paths = to_prepend
+        .chain(iter(vec![current_path]))
+        .chain(to_append)
         .filter(move |path| {
             !(path.trim().is_empty() || to_remove.contains(path))
         });
