@@ -1,13 +1,14 @@
-#![feature(plugin, io, core, env)]
+#![feature(plugin, env, process, old_io)]
+
+#![plugin(docopt_macros)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate docopt;
-#[plugin] #[no_link] extern crate docopt_macros;
 
 use std::collections::HashSet;
-use std::old_io::{process, IoError, stdio};
-use std::old_io::process::StdioContainer;
-use std::env;
+use std::{env, process, old_io};
+use std::process::Stdio;
+use std::old_io::stdio;
 
 docopt!(Config derive Debug Clone, "
 Usage: env-control <var-name> [-a PATH | -p PATH | -r PATH]...
@@ -29,7 +30,7 @@ struct Changes {
 fn main() {
     let cfg: Config = Config::docopt().decode().unwrap_or_else(|e| e.exit());
 
-    let current_path = match env::var_string(&cfg.arg_var_name[]) {
+    let current_path = match env::var(&cfg.arg_var_name[..]) {
         Ok(string) => string,
         Err(_)     => "".to_string(),
     };
@@ -42,24 +43,25 @@ fn main() {
 
     if cfg.cmd_exec {
         let mut buffer = Vec::with_capacity(current_path.len());
-        process_paths(&mut buffer, changes, &current_path[]).unwrap();
+        process_paths(&mut buffer, changes, &current_path[..]).unwrap();
 
-        process::Command::new(&cfg.arg_cmd[])
-            .args(&cfg.arg_cmd_args[])
-            .env(cfg.arg_var_name, buffer)
-            .stdin(StdioContainer::InheritFd(0))
-            .stdout(StdioContainer::InheritFd(1))
-            .stderr(StdioContainer::InheritFd(2))
+        env::set_var(&cfg.arg_var_name, &String::from_utf8(buffer).unwrap());
+
+        process::Command::new(&cfg.arg_cmd[..])
+            .args(&cfg.arg_cmd_args[..])
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()
             .unwrap();
     } else {
         let mut stdout = stdio::stdout();
-        process_paths(&mut stdout, changes, &current_path[]).unwrap();
+        process_paths(&mut stdout, changes, &current_path[..]).unwrap();
         write!(&mut stdout, "\n").unwrap();
     }
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), IoError> where W: Writer {
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), old_io::IoError> where W: Writer {
     let Changes { to_append, to_prepend, to_remove } = changes;
 
     let mut combined_paths = to_prepend.into_iter()
