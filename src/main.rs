@@ -1,6 +1,4 @@
-#![feature(plugin, io)]
-
-#![plugin(docopt_macros)]
+#![feature(io)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 extern crate docopt;
@@ -12,9 +10,11 @@ use std::collections::HashSet;
 use std::{env, process, io};
 use std::process::Stdio;
 
+use docopt::Docopt;
+
 use path_set::{PathSetIter, iter};
 
-docopt!(Config derive Debug Clone, "
+const USAGE: &'static str = "
 Usage: env-control <var-name> [-a PATH | -p PATH | -r PATH]...
        env-control exec <var-name> [-a PATH | -p PATH | -r PATH]... <cmd> [<cmd-args>]...
 
@@ -23,7 +23,7 @@ Options:
     -p, --prepend PATH  Prepend this path to the variable
     -r, --remove PATH   Remove this path from the variable
     <var-name>          The PATH-like environment variable to manipulate
-");
+";
 
 struct Changes {
     to_remove: HashSet<String>,
@@ -31,8 +31,21 @@ struct Changes {
     to_prepend: PathSetIter<String>,
 }
 
+#[derive(Debug, Clone, RustcDecodable)]
+struct Config {
+    arg_cmd: String,
+    arg_var_name: String,
+    cmd_exec: bool,
+    flag_remove: Vec<String>,
+    arg_cmd_args: Vec<String>,
+    flag_prepend: Vec<String>,
+    flag_append: Vec<String>,
+}
+
 fn main() {
-    let cfg: Config = Config::docopt().decode().unwrap_or_else(|e| e.exit());
+    let cfg: Config = Docopt::new(USAGE)
+        .and_then(|docopt| docopt.decode())
+        .unwrap_or_else(|e| e.exit());
 
     let current_path = match env::var(&cfg.arg_var_name[..]) {
         Ok(string) => string,

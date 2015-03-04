@@ -6,4 +6,3 @@ authors = ["Renato Zannon <renato@rrsz.com.br>"]
 [dependencies]
 docopt = "*"
 rustc-serialize = "*"
-docopt_macros = "*"
