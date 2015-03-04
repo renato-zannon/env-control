@@ -1,4 +1,4 @@
-#![feature(plugin, env, process, old_io)]
+#![feature(plugin, io)]
 
 #![plugin(docopt_macros)]
 
@@ -7,10 +7,10 @@ extern crate docopt;
 
 mod path_set;
 
+use std::io::prelude::*;
 use std::collections::HashSet;
-use std::{env, process, old_io};
+use std::{env, process, io};
 use std::process::Stdio;
-use std::old_io::stdio;
 
 use path_set::{PathSetIter, iter};
 
@@ -59,13 +59,13 @@ fn main() {
             .spawn()
             .unwrap();
     } else {
-        let mut stdout = stdio::stdout();
+        let mut stdout = io::stdout();
         process_paths(&mut stdout, changes, &current_path[..]).unwrap();
         write!(&mut stdout, "\n").unwrap();
     }
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), old_io::IoError> where W: Writer {
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), io::Error> where W: Write {
     let Changes { to_append, to_prepend, to_remove } = changes;
 
     let mut combined_paths = to_prepend
