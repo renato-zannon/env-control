@@ -2,18 +2,18 @@
 name = "env-control"
 version = "0.0.1"
 dependencies = [
- "docopt 0.6.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "docopt 0.6.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "docopt"
-version = "0.6.43"
+version = "0.6.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -23,11 +23,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "regex"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
