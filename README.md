@@ -7,6 +7,8 @@ Silly utility for manipulating `PATH`-like strings
 Run `cargo build --release` on the root directory, and copy the `target/release/env-control` executable to somewhere
 on your default `$PATH` (like `/usr/local/bin`, for example).
 
+`env-control` uses no unstable features, and thus is compatible with Rust 1.0 beta.
+
 ## Example of usage
 
 On your `.bashrc`, use this to prepend or append atoms to your `$PATH` or `$LD_LIBRARY_PATH`:
