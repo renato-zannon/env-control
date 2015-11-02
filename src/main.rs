@@ -5,7 +5,8 @@ mod path_set;
 
 use std::io::prelude::*;
 use std::collections::HashSet;
-use std::{env, process, io};
+use std::{env, process, io, vec};
+use std::iter::once;
 use std::process::Stdio;
 
 use docopt::Docopt;
@@ -25,8 +26,8 @@ Options:
 
 struct Changes {
     to_remove: HashSet<String>,
-    to_append: PathSetIter<String>,
-    to_prepend: PathSetIter<String>,
+    to_append: PathSetIter<vec::IntoIter<String>>,
+    to_prepend: PathSetIter<vec::IntoIter<String>>,
 }
 
 #[derive(Debug, Clone, RustcDecodable)]
@@ -47,7 +48,7 @@ fn main() {
 
     let current_path = match env::var(&cfg.arg_var_name[..]) {
         Ok(string) => string,
-        Err(_)     => "".to_string(),
+        Err(_)     => "".to_owned(),
     };
 
     let changes = Changes {
@@ -80,7 +81,7 @@ fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Res
     let Changes { to_append, to_prepend, to_remove } = changes;
 
     let mut combined_paths = to_prepend
-        .chain(iter(vec![current_path]))
+        .chain(iter(once(current_path)))
         .chain(to_append)
         .filter(move |path| {
             !(path.trim().is_empty() || to_remove.contains(path))

@@ -1,19 +1,16 @@
-use std::vec;
-use std::ops::Deref;
-
-pub fn iter<S>(container: Vec<S>) -> PathSetIter<S> where S: Deref<Target = str> {
+pub fn iter<C>(container: C) -> PathSetIter<C::IntoIter> where C::Item: AsRef<str>, C: IntoIterator {
     PathSetIter {
         iter: container.into_iter(),
         current_strings: vec![],
     }
 }
 
-pub struct PathSetIter<S> where S: Deref<Target = str> {
-    iter: vec::IntoIter<S>,
+pub struct PathSetIter<I> where I::Item: AsRef<str>, I: Iterator {
+    iter: I,
     current_strings: Vec<String>
 }
 
-impl<S> Iterator for PathSetIter<S> where S: Deref<Target = str> {
+impl<I> Iterator for PathSetIter<I> where I: Iterator, I::Item: AsRef<str> {
     type Item = String;
 
     fn next(&mut self) -> Option<String> {
@@ -22,12 +19,13 @@ impl<S> Iterator for PathSetIter<S> where S: Deref<Target = str> {
                 return Some(s);
             }
 
-            let next_str = match self.iter.next() {
+            let next_item = match self.iter.next() {
                 Some(s) => s,
                 None    => return None,
             };
 
-            self.current_strings.extend(next_str.split(':').map(|s| s.to_string()).rev());
+            let next_str = next_item.as_ref();
+            self.current_strings.extend(next_str.split(':').map(|s| s.to_owned()).rev());
         }
     }
 }
