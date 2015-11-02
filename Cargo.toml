@@ -3,6 +3,6 @@ name = "env-control"
 version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
 
-[dependencies]
-docopt = "*"
-rustc-serialize = "*"
+[dependencies.clap]
+version = '^1.4.6'
+default-features = false

@@ -1,78 +1,79 @@
-extern crate rustc_serialize;
-extern crate docopt;
+#[macro_use]
+extern crate clap;
 
 mod path_set;
 
 use std::io::prelude::*;
+use std::os::unix::prelude::*;
 use std::collections::HashSet;
 use std::{env, process, io, vec};
+use std::ffi::OsStr;
 use std::iter::once;
 use std::process::Stdio;
 
-use docopt::Docopt;
-
 use path_set::{PathSetIter, iter};
 
-const USAGE: &'static str = "
-Usage: env-control <var-name> [-a PATH | -p PATH | -r PATH]...
-       env-control exec <var-name> [-a PATH | -p PATH | -r PATH]... <cmd> [<cmd-args>]...
-
-Options:
-    -a, --append PATH   Append this path to the variable
-    -p, --prepend PATH  Prepend this path to the variable
-    -r, --remove PATH   Remove this path from the variable
-    <var-name>          The PATH-like environment variable to manipulate
-";
-
-struct Changes {
+struct Changes<'a, 'b> {
     to_remove: HashSet<String>,
-    to_append: PathSetIter<vec::IntoIter<String>>,
-    to_prepend: PathSetIter<vec::IntoIter<String>>,
-}
-
-#[derive(Debug, Clone, RustcDecodable)]
-struct Config {
-    arg_cmd: String,
-    arg_var_name: String,
-    cmd_exec: bool,
-    flag_remove: Vec<String>,
-    arg_cmd_args: Vec<String>,
-    flag_prepend: Vec<String>,
-    flag_append: Vec<String>,
+    to_append: PathSetIter<vec::IntoIter<&'a str>>,
+    to_prepend: PathSetIter<vec::IntoIter<&'b str>>,
 }
 
 fn main() {
-    let cfg: Config = Docopt::new(USAGE)
-        .and_then(|docopt| docopt.decode())
-        .unwrap_or_else(|e| e.exit());
+    use clap::{App, Arg, SubCommand, AppSettings};
 
-    let current_path = match env::var(&cfg.arg_var_name[..]) {
+    let matches = App::new("env-control")
+        .author("Renato Zannon <renato@rrsz.com.br>")
+        .about("PATH-like string manipulation utility")
+        .version(&crate_version!())
+        .arg_from_usage("[var-name] 'the PATH-like environment variable to manipulate. \
+                         Defaults to $PATH'")
+        .arg(Arg::from_usage("-a --append=[append-paths]... 'Append this path to the variable'")
+             .value_name("PATH"))
+        .arg(Arg::from_usage("-p --prepend=[prepend-paths]... 'Prepend this path to the variable'")
+             .value_name("PATH"))
+        .arg(Arg::from_usage("-r --remove=[remove-paths]... 'Remove this path from the variable'")
+             .value_name("PATH"))
+        .subcommand(SubCommand::with_name("exec")
+                    .about("Execute <cmd> with the modified var-name")
+                    .arg_from_usage("<cmd> 'Command to execute'")
+                    .arg_from_usage("[cmd-args]... 'Arguments to <cmd>'")
+                    .setting(AppSettings::TrailingVarArg))
+        .get_matches();
+
+    let var_name = matches.value_of("var-name").unwrap_or("PATH");
+
+    let current_path = match env::var(&var_name) {
         Ok(string) => string,
         Err(_)     => "".to_owned(),
     };
 
     let changes = Changes {
-        to_remove: iter(cfg.flag_remove).collect(),
-        to_append: iter(cfg.flag_append),
-        to_prepend: iter(cfg.flag_prepend),
+        to_remove:  iter(matches.values_of("remove-paths").unwrap_or(vec![])).collect(),
+        to_append:  iter(matches.values_of("append-paths").unwrap_or(vec![])),
+        to_prepend: iter(matches.values_of("prepend-paths").unwrap_or(vec![])),
     };
 
-    if cfg.cmd_exec {
-        let mut buffer = Vec::with_capacity(current_path.len());
-        process_paths(&mut buffer, changes, &current_path[..]).unwrap();
+    if let Some(ref exec_matches) = matches.subcommand_matches("exec") {
+        let mut new_value = Vec::with_capacity(current_path.len());
+        process_paths(&mut new_value, changes, &current_path).unwrap();
 
-        env::set_var(&cfg.arg_var_name, &String::from_utf8(buffer).unwrap());
+        env::set_var(&var_name, OsStr::from_bytes(&new_value));
 
-        process::Command::new(&cfg.arg_cmd[..])
-            .args(&cfg.arg_cmd_args[..])
+        let cmd_name = exec_matches.value_of("cmd").unwrap();
+        let cmd_args = exec_matches.values_of("cmd-args").unwrap_or(vec![]);
+
+        process::Command::new(cmd_name)
+            .args(&cmd_args)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
+            .and_then(|mut child| child.wait())
             .unwrap();
     } else {
         let mut stdout = io::stdout();
-        process_paths(&mut stdout, changes, &current_path[..]).unwrap();
+        process_paths(&mut stdout, changes, &current_path).unwrap();
         write!(&mut stdout, "\n").unwrap();
     }
 }
