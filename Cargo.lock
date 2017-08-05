@@ -18,3 +18,6 @@ dependencies = [
  "bitflags 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
+[metadata]
+"checksum bitflags 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "65fee84cb17ca0b1f86b3870caad42a966b58366caed5a1651c6eb7f415ac545"
+"checksum clap 1.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "3d1f6c772229a260ac481275c4b460faf5da2fb0cc51858f39b09f95f8b42717"
