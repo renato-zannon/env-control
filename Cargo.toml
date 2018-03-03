@@ -4,5 +4,5 @@ version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
 
 [dependencies.clap]
-version = '^1.4.6'
+version = '^2.30.0'
 default-features = false

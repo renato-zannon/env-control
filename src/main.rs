@@ -6,17 +6,18 @@ mod path_set;
 use std::io::prelude::*;
 use std::os::unix::prelude::*;
 use std::collections::HashSet;
-use std::{env, process, io, vec};
+use std::{env, process, io};
 use std::ffi::OsStr;
 use std::iter::once;
 use std::process::Stdio;
+use std::default::Default;
 
 use path_set::{PathSetIter, iter};
 
 struct Changes<'a, 'b> {
     to_remove: HashSet<String>,
-    to_append: PathSetIter<vec::IntoIter<&'a str>>,
-    to_prepend: PathSetIter<vec::IntoIter<&'b str>>,
+    to_append: PathSetIter<clap::Values<'a>>,
+    to_prepend: PathSetIter<clap::Values<'b>>,
 }
 
 fn main() {
@@ -25,15 +26,12 @@ fn main() {
     let matches = App::new("env-control")
         .author("Renato Zannon <renato@rrsz.com.br>")
         .about("PATH-like string manipulation utility")
-        .version(&crate_version!())
+        .version(crate_version!())
         .arg_from_usage("[var-name] 'the PATH-like environment variable to manipulate. \
                          Defaults to $PATH'")
-        .arg(Arg::from_usage("-a --append=[append-paths]... 'Append this path to the variable'")
-             .value_name("PATH"))
-        .arg(Arg::from_usage("-p --prepend=[prepend-paths]... 'Prepend this path to the variable'")
-             .value_name("PATH"))
-        .arg(Arg::from_usage("-r --remove=[remove-paths]... 'Remove this path from the variable'")
-             .value_name("PATH"))
+        .arg(Arg::from_usage("-a --append=[PATH]... 'Append this path to the variable'"))
+        .arg(Arg::from_usage("-p --prepend=[PATH]... 'Prepend this path to the variable'"))
+        .arg(Arg::from_usage("-r --remove=[PATH]... 'Remove this path from the variable'"))
         .subcommand(SubCommand::with_name("exec")
                     .about("Execute <cmd> with the modified var-name")
                     .arg_from_usage("<cmd> 'Command to execute'")
@@ -49,9 +47,9 @@ fn main() {
     };
 
     let changes = Changes {
-        to_remove:  iter(matches.values_of("remove-paths").unwrap_or(vec![])).collect(),
-        to_append:  iter(matches.values_of("append-paths").unwrap_or(vec![])),
-        to_prepend: iter(matches.values_of("prepend-paths").unwrap_or(vec![])),
+        to_remove:  path_iter(&matches, "remove").collect(),
+        to_append:  path_iter(&matches, "append"),
+        to_prepend: path_iter(&matches, "prepend"),
     };
 
     if let Some(ref exec_matches) = matches.subcommand_matches("exec") {
@@ -61,10 +59,10 @@ fn main() {
         env::set_var(&var_name, OsStr::from_bytes(&new_value));
 
         let cmd_name = exec_matches.value_of("cmd").unwrap();
-        let cmd_args = exec_matches.values_of("cmd-args").unwrap_or(vec![]);
+        let cmd_args = exec_matches.values_of("cmd-args").unwrap_or_else(Default::default);
 
         process::Command::new(cmd_name)
-            .args(&cmd_args)
+            .args(cmd_args)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -107,4 +105,8 @@ fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Res
     }
 
     Ok(())
+}
+
+fn path_iter<'a>(matches: &'a clap::ArgMatches, option: &str) -> PathSetIter<clap::Values<'a>> {
+    return iter(matches.values_of(option).unwrap_or_else(Default::default));
 }
