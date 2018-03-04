@@ -27,11 +27,16 @@ fn main() {
         .author("Renato Zannon <renato@rrsz.com.br>")
         .about("PATH-like string manipulation utility")
         .version(crate_version!())
-        .arg_from_usage("[var-name] 'the PATH-like environment variable to manipulate. \
-                         Defaults to $PATH'")
-        .arg(Arg::from_usage("-a --append=[PATH]... 'Append this path to the variable'"))
-        .arg(Arg::from_usage("-p --prepend=[PATH]... 'Prepend this path to the variable'"))
-        .arg(Arg::from_usage("-r --remove=[PATH]... 'Remove this path from the variable'"))
+        .arg(Arg::with_name("var-name")
+             .help("the PATH-like environment variable to manipulate. Defaults to $PATH")
+             .required(false)
+             .index(1)
+         )
+        .args_from_usage("
+            -a --append=[PATH]...  'Append this path to the variable'
+            -p --prepend=[PATH]... 'Prepend this path to the variable'
+            -r --remove=[PATH]...  'Remove this path from the variable'
+        ")
         .subcommand(SubCommand::with_name("exec")
                     .about("Execute <cmd> with the modified var-name")
                     .arg_from_usage("<cmd> 'Command to execute'")
