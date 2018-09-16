@@ -2,20 +2,23 @@
 extern crate clap;
 #[macro_use]
 extern crate quicli;
+
 use quicli::prelude::*;
 
+use std::{
+    collections::HashSet,
+    default::Default,
+    env,
+    ffi::OsStr,
+    io::{self, prelude::*},
+    iter::once,
+    os::unix::prelude::*,
+    process::{self, Stdio},
+};
+
+use path_set::{iter, PathSetIter};
+
 mod path_set;
-
-use std::io::prelude::*;
-use std::os::unix::prelude::*;
-use std::collections::HashSet;
-use std::{env, process, io};
-use std::ffi::OsStr;
-use std::iter::once;
-use std::process::Stdio;
-use std::default::Default;
-
-use path_set::{PathSetIter, iter};
 
 struct Changes<'a, 'b> {
     to_remove: HashSet<String>,
@@ -30,12 +33,12 @@ main!({
 
     let current_path = match env::var(var_name) {
         Ok(string) => string,
-        Err(_)     => String::new(),
+        Err(_) => String::new(),
     };
 
     let changes = Changes {
-        to_remove:  path_iter(&matches, "remove").collect(),
-        to_append:  path_iter(&matches, "append"),
+        to_remove: path_iter(&matches, "remove").collect(),
+        to_append: path_iter(&matches, "append"),
         to_prepend: path_iter(&matches, "prepend"),
     };
 
@@ -64,33 +67,40 @@ fn print_new_value(current_path: String, changes: Changes) -> Result<()> {
 }
 
 fn arg_matches() -> clap::ArgMatches<'static> {
-    use clap::{App, Arg, SubCommand, AppSettings};
+    use clap::{App, AppSettings, Arg, SubCommand};
 
     return App::new("env-control")
         .author("Renato Zannon <renato@rrsz.com.br>")
         .about("PATH-like string manipulation utility")
         .version(crate_version!())
-        .arg(Arg::with_name("var-name")
-             .help("the PATH-like environment variable to manipulate. Defaults to $PATH")
-             .required(false)
-             .index(1)
-         )
-        .args_from_usage("
+        .arg(
+            Arg::with_name("var-name")
+                .help("the PATH-like environment variable to manipulate. Defaults to $PATH")
+                .required(false)
+                .index(1),
+        )
+        .args_from_usage(
+            "
             -a --append=[PATH]...  'Append this path to the variable'
             -p --prepend=[PATH]... 'Prepend this path to the variable'
             -r --remove=[PATH]...  'Remove this path from the variable'
-        ")
-        .subcommand(SubCommand::with_name("exec")
-                    .about("Execute <cmd> with the modified var-name")
-                    .arg_from_usage("<cmd> 'Command to execute'")
-                    .arg_from_usage("[cmd-args]... 'Arguments to <cmd>'")
-                    .setting(AppSettings::TrailingVarArg))
+        ",
+        )
+        .subcommand(
+            SubCommand::with_name("exec")
+                .about("Execute <cmd> with the modified var-name")
+                .arg_from_usage("<cmd> 'Command to execute'")
+                .arg_from_usage("[cmd-args]... 'Arguments to <cmd>'")
+                .setting(AppSettings::TrailingVarArg),
+        )
         .get_matches();
 }
 
 fn call_child(exec_matches: &clap::ArgMatches) -> Result<()> {
     let cmd_name = exec_matches.value_of("cmd").unwrap();
-    let cmd_args = exec_matches.values_of("cmd-args").unwrap_or_else(Default::default);
+    let cmd_args = exec_matches
+        .values_of("cmd-args")
+        .unwrap_or_else(Default::default);
 
     process::Command::new(cmd_name)
         .args(cmd_args)
@@ -103,15 +113,20 @@ fn call_child(exec_matches: &clap::ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<()> where W: Write {
-    let Changes { to_append, to_prepend, to_remove } = changes;
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<()>
+where
+    W: Write,
+{
+    let Changes {
+        to_append,
+        to_prepend,
+        to_remove,
+    } = changes;
 
     let mut combined_paths = to_prepend
         .chain(iter(once(current_path)))
         .chain(to_append)
-        .filter(move |path| {
-            !(path.trim().is_empty() || to_remove.contains(path))
-        });
+        .filter(move |path| !(path.trim().is_empty() || to_remove.contains(path)));
 
     let mut printed_paths: HashSet<String> = HashSet::new();
 
@@ -124,7 +139,7 @@ fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Res
 
     for path in combined_paths {
         if printed_paths.contains(&path) {
-            continue
+            continue;
         }
 
         write!(writer, ":{}", path)?;
