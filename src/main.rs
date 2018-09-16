@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate clap;
+#[macro_use]
+extern crate quicli;
+use quicli::prelude::*;
 
 mod path_set;
 
@@ -20,10 +23,50 @@ struct Changes<'a, 'b> {
     to_prepend: PathSetIter<clap::Values<'b>>,
 }
 
-fn main() {
+main!({
+    let matches = arg_matches();
+
+    let var_name = matches.value_of("var-name").unwrap_or("PATH");
+
+    let current_path = match env::var(var_name) {
+        Ok(string) => string,
+        Err(_)     => String::new(),
+    };
+
+    let changes = Changes {
+        to_remove:  path_iter(&matches, "remove").collect(),
+        to_append:  path_iter(&matches, "append"),
+        to_prepend: path_iter(&matches, "prepend"),
+    };
+
+    if let Some(exec_matches) = matches.subcommand_matches("exec") {
+        set_new_value_on_env(var_name, current_path, changes)?;
+        call_child(exec_matches)?;
+    } else {
+        print_new_value(current_path, changes)?;
+    }
+});
+
+fn set_new_value_on_env(var_name: &str, current_path: String, changes: Changes) -> Result<()> {
+    let mut new_value = Vec::with_capacity(current_path.len());
+    process_paths(&mut new_value, changes, &current_path)?;
+
+    env::set_var(&var_name, OsStr::from_bytes(&new_value));
+    Ok(())
+}
+
+fn print_new_value(current_path: String, changes: Changes) -> Result<()> {
+    let mut stdout = io::stdout();
+    process_paths(&mut stdout, changes, &current_path)?;
+
+    write!(&mut stdout, "\n")?;
+    Ok(())
+}
+
+fn arg_matches() -> clap::ArgMatches<'static> {
     use clap::{App, Arg, SubCommand, AppSettings};
 
-    let matches = App::new("env-control")
+    return App::new("env-control")
         .author("Renato Zannon <renato@rrsz.com.br>")
         .about("PATH-like string manipulation utility")
         .version(crate_version!())
@@ -43,45 +86,24 @@ fn main() {
                     .arg_from_usage("[cmd-args]... 'Arguments to <cmd>'")
                     .setting(AppSettings::TrailingVarArg))
         .get_matches();
-
-    let var_name = matches.value_of("var-name").unwrap_or("PATH");
-
-    let current_path = match env::var(&var_name) {
-        Ok(string) => string,
-        Err(_)     => "".to_owned(),
-    };
-
-    let changes = Changes {
-        to_remove:  path_iter(&matches, "remove").collect(),
-        to_append:  path_iter(&matches, "append"),
-        to_prepend: path_iter(&matches, "prepend"),
-    };
-
-    if let Some(ref exec_matches) = matches.subcommand_matches("exec") {
-        let mut new_value = Vec::with_capacity(current_path.len());
-        process_paths(&mut new_value, changes, &current_path).unwrap();
-
-        env::set_var(&var_name, OsStr::from_bytes(&new_value));
-
-        let cmd_name = exec_matches.value_of("cmd").unwrap();
-        let cmd_args = exec_matches.values_of("cmd-args").unwrap_or_else(Default::default);
-
-        process::Command::new(cmd_name)
-            .args(cmd_args)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .and_then(|mut child| child.wait())
-            .unwrap();
-    } else {
-        let mut stdout = io::stdout();
-        process_paths(&mut stdout, changes, &current_path).unwrap();
-        write!(&mut stdout, "\n").unwrap();
-    }
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), io::Error> where W: Write {
+fn call_child(exec_matches: &clap::ArgMatches) -> Result<()> {
+    let cmd_name = exec_matches.value_of("cmd").unwrap();
+    let cmd_args = exec_matches.values_of("cmd-args").unwrap_or_else(Default::default);
+
+    process::Command::new(cmd_name)
+        .args(cmd_args)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .and_then(|mut child| child.wait())?;
+
+    Ok(())
+}
+
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<()> where W: Write {
     let Changes { to_append, to_prepend, to_remove } = changes;
 
     let mut combined_paths = to_prepend
@@ -94,7 +116,7 @@ fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Res
     let mut printed_paths: HashSet<String> = HashSet::new();
 
     if let Some(first_path) = combined_paths.next() {
-        try!(write!(writer, "{}", first_path));
+        write!(writer, "{}", first_path)?;
         printed_paths.insert(first_path);
     } else {
         return Ok(());
@@ -105,7 +127,7 @@ fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Res
             continue
         }
 
-        try!(write!(writer, ":{}", path));
+        write!(writer, ":{}", path)?;
         printed_paths.insert(path);
     }
 
