@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
 
 [dependencies]
-quicli = "0.3"
+quicli = "0.4"
 
 [dependencies.clap]
 version = '^2.30.0'

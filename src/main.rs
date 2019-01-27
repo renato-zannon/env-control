@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate clap;
-#[macro_use]
 extern crate quicli;
 
 use quicli::prelude::*;
@@ -26,7 +25,7 @@ struct Changes<'a, 'b> {
     to_prepend: PathSetIter<clap::Values<'b>>,
 }
 
-main!({
+fn main() -> CliResult {
     let matches = arg_matches();
 
     let var_name = matches.value_of("var-name").unwrap_or("PATH");
@@ -48,9 +47,15 @@ main!({
     } else {
         print_new_value(current_path, changes)?;
     }
-});
 
-fn set_new_value_on_env(var_name: &str, current_path: String, changes: Changes) -> Result<()> {
+    Ok(())
+}
+
+fn set_new_value_on_env(
+    var_name: &str,
+    current_path: String,
+    changes: Changes,
+) -> Result<(), Error> {
     let mut new_value = Vec::with_capacity(current_path.len());
     process_paths(&mut new_value, changes, &current_path)?;
 
@@ -58,7 +63,7 @@ fn set_new_value_on_env(var_name: &str, current_path: String, changes: Changes) 
     Ok(())
 }
 
-fn print_new_value(current_path: String, changes: Changes) -> Result<()> {
+fn print_new_value(current_path: String, changes: Changes) -> Result<(), Error> {
     let mut stdout = io::stdout();
     process_paths(&mut stdout, changes, &current_path)?;
 
@@ -96,7 +101,7 @@ fn arg_matches() -> clap::ArgMatches<'static> {
         .get_matches();
 }
 
-fn call_child(exec_matches: &clap::ArgMatches) -> Result<()> {
+fn call_child(exec_matches: &clap::ArgMatches) -> Result<(), Error> {
     let cmd_name = exec_matches.value_of("cmd").unwrap();
     let cmd_args = exec_matches
         .values_of("cmd-args")
@@ -113,7 +118,7 @@ fn call_child(exec_matches: &clap::ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<()>
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), Error>
 where
     W: Write,
 {
