@@ -2,7 +2,10 @@
 name = "env-control"
 version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
+description = "Command-line utility for adjusting PATH-style environment variables"
 edition = "2024"
+rust-version = "1.90"
+license-file = "LICENSE"
 
 [dependencies]
 clap = { version = "4.5.4" }
