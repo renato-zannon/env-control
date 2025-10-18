@@ -1,4 +1,4 @@
-use quicli::prelude::*;
+use failure::Error;
 
 use std::{
     collections::HashSet,
@@ -18,7 +18,7 @@ struct Changes<'a, 'b> {
     to_prepend: PathSetIter<clap::Values<'b>>,
 }
 
-fn main() -> CliResult {
+fn main() -> Result<(), Error> {
     let matches = arg_matches();
 
     let var_name = matches.value_of("var-name").unwrap_or("PATH");
