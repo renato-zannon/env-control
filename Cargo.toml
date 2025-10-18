@@ -4,9 +4,6 @@ version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
 edition = "2024"
 
-[dependencies]
-failure = "0.1"
-
 [dependencies.clap]
 version = '^2.30.0'
 default-features = false

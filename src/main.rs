@@ -1,5 +1,3 @@
-use failure::Error;
-
 use std::{
     collections::HashSet,
     env,
@@ -12,13 +10,15 @@ use path_set::{PathSetIter, iter};
 
 mod path_set;
 
+type AppResult<T> = Result<T, Box<dyn std::error::Error>>;
+
 struct Changes<'a, 'b> {
     to_remove: HashSet<String>,
     to_append: PathSetIter<clap::Values<'a>>,
     to_prepend: PathSetIter<clap::Values<'b>>,
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> AppResult<()> {
     let matches = arg_matches();
 
     let var_name = matches.value_of("var-name").unwrap_or("PATH");
@@ -45,13 +45,13 @@ fn collect_changes<'a>(matches: &'a clap::ArgMatches) -> Changes<'a, 'a> {
     }
 }
 
-fn build_new_value(current_path: &str, changes: Changes) -> Result<String, Error> {
+fn build_new_value(current_path: &str, changes: Changes) -> AppResult<String> {
     let mut buffer = Vec::with_capacity(current_path.len());
     process_paths(&mut buffer, changes, current_path)?;
     Ok(String::from_utf8(buffer)?)
 }
 
-fn print_new_value(current_path: &str, changes: Changes) -> Result<(), Error> {
+fn print_new_value(current_path: &str, changes: Changes) -> AppResult<()> {
     let new_value = build_new_value(current_path, changes)?;
     let mut stdout = io::stdout();
     writeln!(&mut stdout, "{}", new_value)?;
@@ -92,7 +92,7 @@ fn call_child(
     exec_matches: &clap::ArgMatches,
     var_name: &str,
     new_value: &str,
-) -> Result<(), Error> {
+) -> AppResult<()> {
     let cmd_name = exec_matches.value_of("cmd").unwrap();
     let cmd_args = exec_matches
         .values_of("cmd-args")
@@ -110,7 +110,7 @@ fn call_child(
     Ok(())
 }
 
-fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> Result<(), Error>
+fn process_paths<W>(writer: &mut W, changes: Changes, current_path: &str) -> AppResult<()>
 where
     W: Write,
 {
