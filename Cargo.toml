@@ -2,6 +2,7 @@
 name = "env-control"
 version = "0.0.1"
 authors = ["Renato Zannon <renato@rrsz.com.br>"]
+edition = "2024"
 
 [dependencies]
 quicli = "0.4"

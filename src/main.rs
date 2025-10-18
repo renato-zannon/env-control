@@ -1,21 +1,14 @@
-#[macro_use]
-extern crate clap;
-extern crate quicli;
-
 use quicli::prelude::*;
 
 use std::{
     collections::HashSet,
-    default::Default,
     env,
-    ffi::OsStr,
     io::{self, prelude::*},
     iter::once,
-    os::unix::prelude::*,
     process::{self, Stdio},
 };
 
-use path_set::{iter, PathSetIter};
+use path_set::{PathSetIter, iter};
 
 mod path_set;
 
@@ -30,51 +23,45 @@ fn main() -> CliResult {
 
     let var_name = matches.value_of("var-name").unwrap_or("PATH");
 
-    let current_path = match env::var(var_name) {
-        Ok(string) => string,
-        Err(_) => String::new(),
-    };
-
-    let changes = Changes {
-        to_remove: path_iter(&matches, "remove").collect(),
-        to_append: path_iter(&matches, "append"),
-        to_prepend: path_iter(&matches, "prepend"),
-    };
+    let current_path = env::var(var_name).unwrap_or_default();
 
     if let Some(exec_matches) = matches.subcommand_matches("exec") {
-        set_new_value_on_env(var_name, current_path, changes)?;
-        call_child(exec_matches)?;
+        let changes = collect_changes(&matches);
+        let new_value = build_new_value(&current_path, changes)?;
+        call_child(exec_matches, var_name, &new_value)?;
     } else {
-        print_new_value(current_path, changes)?;
+        let changes = collect_changes(&matches);
+        print_new_value(&current_path, changes)?;
     }
 
     Ok(())
 }
 
-fn set_new_value_on_env(
-    var_name: &str,
-    current_path: String,
-    changes: Changes,
-) -> Result<(), Error> {
-    let mut new_value = Vec::with_capacity(current_path.len());
-    process_paths(&mut new_value, changes, &current_path)?;
-
-    env::set_var(&var_name, OsStr::from_bytes(&new_value));
-    Ok(())
+fn collect_changes<'a>(matches: &'a clap::ArgMatches) -> Changes<'a, 'a> {
+    Changes {
+        to_remove: path_iter(matches, "remove").collect(),
+        to_append: path_iter(matches, "append"),
+        to_prepend: path_iter(matches, "prepend"),
+    }
 }
 
-fn print_new_value(current_path: String, changes: Changes) -> Result<(), Error> {
-    let mut stdout = io::stdout();
-    process_paths(&mut stdout, changes, &current_path)?;
+fn build_new_value(current_path: &str, changes: Changes) -> Result<String, Error> {
+    let mut buffer = Vec::with_capacity(current_path.len());
+    process_paths(&mut buffer, changes, current_path)?;
+    Ok(String::from_utf8(buffer)?)
+}
 
-    write!(&mut stdout, "\n")?;
+fn print_new_value(current_path: &str, changes: Changes) -> Result<(), Error> {
+    let new_value = build_new_value(current_path, changes)?;
+    let mut stdout = io::stdout();
+    writeln!(&mut stdout, "{}", new_value)?;
     Ok(())
 }
 
 fn arg_matches() -> clap::ArgMatches<'static> {
-    use clap::{App, AppSettings, Arg, SubCommand};
+    use clap::{App, AppSettings, Arg, SubCommand, crate_version};
 
-    return App::new("env-control")
+    App::new("env-control")
         .author("Renato Zannon <renato@rrsz.com.br>")
         .about("PATH-like string manipulation utility")
         .version(crate_version!())
@@ -98,16 +85,21 @@ fn arg_matches() -> clap::ArgMatches<'static> {
                 .arg_from_usage("[cmd-args]... 'Arguments to <cmd>'")
                 .setting(AppSettings::TrailingVarArg),
         )
-        .get_matches();
+        .get_matches()
 }
 
-fn call_child(exec_matches: &clap::ArgMatches) -> Result<(), Error> {
+fn call_child(
+    exec_matches: &clap::ArgMatches,
+    var_name: &str,
+    new_value: &str,
+) -> Result<(), Error> {
     let cmd_name = exec_matches.value_of("cmd").unwrap();
     let cmd_args = exec_matches
         .values_of("cmd-args")
-        .unwrap_or_else(Default::default);
+        .unwrap_or_default();
 
     process::Command::new(cmd_name)
+        .env(var_name, new_value)
         .args(cmd_args)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
@@ -155,5 +147,5 @@ where
 }
 
 fn path_iter<'a>(matches: &'a clap::ArgMatches, option: &str) -> PathSetIter<clap::Values<'a>> {
-    return iter(matches.values_of(option).unwrap_or_else(Default::default));
+    iter(matches.values_of(option).unwrap_or_default())
 }

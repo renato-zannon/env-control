@@ -31,10 +31,7 @@ where
                 return Some(s);
             }
 
-            let next_item = match self.iter.next() {
-                Some(s) => s,
-                None => return None,
-            };
+            let next_item = self.iter.next()?;
 
             let next_str = next_item.as_ref();
             self.current_strings
