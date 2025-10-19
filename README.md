@@ -39,6 +39,7 @@ env-control [VAR] [OPTIONS] exec <cmd> [-- <args>...]
 - `-p, --prepend <PATH>` Add entries to the beginning of the variable
 - `-r, --remove <PATH>` Remove matching entries from the variable
 - Repeat any flag as needed. Values containing `:` are split into individual entries automatically
+- The last occurrence of each flag can swallow extra positional arguments, so `env-control -a ~/bin ~/.local/bin` adds both paths
 
 ### Subcommands
 
@@ -64,7 +65,14 @@ Add multiple colon-separated values in one go while dropping `/usr/bin`:
 env-control -p ~/.cargo/bin:/opt/bin -r /usr/bin
 ```
 
+Append two paths without repeating the flag:
+
+```bash
+env-control -a ~/bin ~/.local/bin
+```
+
 ## Notes
 
 - Empty segments are ignored; later duplicates are skipped
 - If the variable didn't exist, `env-control` starts from an empty string and builds from there
+- When providing a custom `VAR` and also using extra positional values (like the example above), put `VAR` before the options: `env-control LD_LIBRARY_PATH -a ~/lib ~/other/lib`

@@ -83,7 +83,7 @@ fn arg_matches() -> clap::ArgMatches {
                 .short('a')
                 .help("Append this path to the variable")
                 .value_name("PATH")
-                .num_args(1)
+                .num_args(1..)
                 .action(ArgAction::Append),
         )
         .arg(
@@ -92,7 +92,7 @@ fn arg_matches() -> clap::ArgMatches {
                 .short('p')
                 .help("Prepend this path to the variable")
                 .value_name("PATH")
-                .num_args(1)
+                .num_args(1..)
                 .action(ArgAction::Append),
         )
         .arg(
@@ -101,7 +101,7 @@ fn arg_matches() -> clap::ArgMatches {
                 .short('r')
                 .help("Remove this path from the variable")
                 .value_name("PATH")
-                .num_args(1)
+                .num_args(1..)
                 .action(ArgAction::Append),
         )
         .subcommand(
